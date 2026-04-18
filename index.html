@@ -4,7 +4,125 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Calculator</title>
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a2e;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .calculator {
+      background: #16213e;
+      border-radius: 24px;
+      padding: 24px;
+      width: 320px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .display {
+      background: #0f3460;
+      border-radius: 16px;
+      padding: 20px 16px 12px;
+      margin-bottom: 20px;
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      overflow: hidden;
+    }
+
+    .expression {
+      font-size: 14px;
+      color: #a0aec0;
+      min-height: 20px;
+      word-break: break-all;
+      text-align: right;
+    }
+
+    .result {
+      font-size: 42px;
+      font-weight: 300;
+      color: #e2e8f0;
+      word-break: break-all;
+      text-align: right;
+      line-height: 1.2;
+      margin-top: 4px;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .btn {
+      background: #1a1a2e;
+      color: #e2e8f0;
+      border: none;
+      border-radius: 14px;
+      padding: 18px 0;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.1s ease;
+      user-select: none;
+    }
+
+    .btn:hover {
+      background: #2d2d4e;
+    }
+
+    .btn:active {
+      transform: scale(0.94);
+      background: #3a3a5e;
+    }
+
+    .btn.span-two {
+      grid-column: span 2;
+    }
+
+    .btn-clear {
+      background: #2d3748;
+      color: #fc8181;
+    }
+
+    .btn-clear:hover {
+      background: #3d4a5e;
+    }
+
+    .btn-operator {
+      background: #2b4a7a;
+      color: #63b3ed;
+      font-size: 20px;
+    }
+
+    .btn-operator:hover {
+      background: #3a5f9a;
+    }
+
+    .btn-equals {
+      background: #e94560;
+      color: #fff;
+      font-size: 22px;
+    }
+
+    .btn-equals:hover {
+      background: #ff5577;
+    }
+
+    .btn-equals:active {
+      background: #c73652;
+    }
+  </style>
 </head>
 <body>
   <div class="calculator">
@@ -38,6 +156,100 @@
       <button class="btn btn-equals" onclick="calculate()">=</button>
     </div>
   </div>
-  <script src="script.js"></script>
+
+  <script>
+    let expression = '';
+    let justCalculated = false;
+
+    const expressionEl = document.getElementById('expression');
+    const resultEl = document.getElementById('result');
+
+    function updateDisplay(value) {
+      resultEl.textContent = value;
+    }
+
+    function formatExpression(expr) {
+      return expr
+        .replace(/\*/g, '×')
+        .replace(/\//g, '÷')
+        .replace(/-/g, '−');
+    }
+
+    function appendToDisplay(value) {
+      const operators = ['+', '-', '*', '/'];
+      const lastChar = expression.slice(-1);
+
+      if (justCalculated) {
+        if (!operators.includes(value)) expression = '';
+        justCalculated = false;
+      }
+
+      if (operators.includes(value) && operators.includes(lastChar)) {
+        expression = expression.slice(0, -1);
+      }
+
+      if (value === '.') {
+        const parts = expression.split(/[\+\-\*\/]/);
+        const currentPart = parts[parts.length - 1];
+        if (currentPart.includes('.')) return;
+      }
+
+      if (expression === '' && operators.includes(value) && value !== '-') return;
+
+      expression += value;
+      expressionEl.textContent = formatExpression(expression);
+      updateDisplay(expression === '' ? '0' : formatExpression(expression));
+    }
+
+    function clearAll() {
+      expression = '';
+      justCalculated = false;
+      expressionEl.textContent = '';
+      updateDisplay('0');
+    }
+
+    function deleteLast() {
+      if (justCalculated) { clearAll(); return; }
+      expression = expression.slice(0, -1);
+      expressionEl.textContent = formatExpression(expression);
+      updateDisplay(expression === '' ? '0' : formatExpression(expression));
+    }
+
+    function toggleSign() {
+      if (!expression || expression === '0') return;
+      expression = expression.startsWith('-') ? expression.slice(1) : '-' + expression;
+      expressionEl.textContent = formatExpression(expression);
+      updateDisplay(formatExpression(expression));
+    }
+
+    function calculate() {
+      if (!expression) return;
+      try {
+        if (!/^[-\d+\-*/().]+$/.test(expression)) { updateDisplay('Error'); return; }
+        const rawResult = Function('"use strict"; return (' + expression + ')')();
+        if (!isFinite(rawResult)) { updateDisplay('Error'); expression = ''; return; }
+        const rounded = parseFloat(rawResult.toPrecision(12));
+        expressionEl.textContent = formatExpression(expression) + ' =';
+        updateDisplay(rounded);
+        expression = String(rounded);
+        justCalculated = true;
+      } catch {
+        updateDisplay('Error');
+        expression = '';
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key >= '0' && e.key <= '9') appendToDisplay(e.key);
+      else if (e.key === '+') appendToDisplay('+');
+      else if (e.key === '-') appendToDisplay('-');
+      else if (e.key === '*') appendToDisplay('*');
+      else if (e.key === '/') { e.preventDefault(); appendToDisplay('/'); }
+      else if (e.key === '.') appendToDisplay('.');
+      else if (e.key === 'Enter' || e.key === '=') calculate();
+      else if (e.key === 'Backspace') deleteLast();
+      else if (e.key === 'Escape') clearAll();
+    });
+  </script>
 </body>
 </html>
